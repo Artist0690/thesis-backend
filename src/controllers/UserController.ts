@@ -66,9 +66,11 @@ const register = async (req: Request, res: Response) => {
     name: z.string(),
     email: z.string().email(),
     password: z.string(),
+    rsa_public_key: z.string(),
   });
 
   const registerPayload = zodRegisterPayload.safeParse(req.body);
+  console.log("request: ", registerPayload);
 
   if (!registerPayload.success) {
     return res.status(403).json({ message: "All fields are required." });
@@ -79,16 +81,22 @@ const register = async (req: Request, res: Response) => {
   const existUser = await User.findOne({ email: email });
 
   if (existUser) {
-    return res.status(403).json({ message: "Email have already been used." });
+    return res.status(403).json({ message: "Email has already been used." });
   }
 
   const createUser = await User.create(registerPayload.data);
 
   if (!createUser) {
-    res.status(400).json({ message: "Failed to register." });
+    return res.status(400).json({ message: "Failed to register." });
   }
 
-  res.status(200).json(createUser);
+  // encrypt username with public key 🔓
+
+  res.status(200).json({
+    name: createUser.name,
+    email: createUser.email,
+    id: createUser.id,
+  });
 };
 
 const refresh = async (req: Request, res: Response) => {

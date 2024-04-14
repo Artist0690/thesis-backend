@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import z from "zod";
 import { User } from "../Models/User";
+import bcrypt from "bcrypt";
 
 const login = async (req: Request, res: Response) => {
   const zodLoginPayload = z.object({
@@ -25,8 +26,12 @@ const login = async (req: Request, res: Response) => {
     return res.status(401).json({ message: "Invalid Email or password." });
   }
 
+  // user exist and check password
+
+  const correctPwd = await bcrypt.compare(password, foundUser.password);
+
   // wrong password
-  if (password !== foundUser.password) {
+  if (!correctPwd) {
     return res.status(401).json({ message: "Invalid Email or password." });
   }
 
@@ -34,10 +39,11 @@ const login = async (req: Request, res: Response) => {
     {
       UserInfo: {
         name: foundUser.email,
+        id: foundUser.id,
       },
     },
     process.env.ACCESS_TOKEN_SECRET as string,
-    { expiresIn: "10s" }
+    { expiresIn: "10m" }
   );
 
   const refreshToken = jwt.sign(

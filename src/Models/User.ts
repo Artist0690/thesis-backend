@@ -1,7 +1,15 @@
-import mongoose, { Schema, Document, model, Model, Models } from "mongoose";
+import mongoose, {
+  Schema,
+  Document,
+  model,
+  Model,
+  Models,
+  InferSchemaType,
+} from "mongoose";
 import bcrypt from "bcrypt";
 import { NextFunction } from "express";
 import { Type } from "typescript";
+import { TypeOf } from "zod";
 
 interface IUser {
   name: string;
@@ -16,7 +24,7 @@ interface IUserMethods extends IUser, mongoose.Document {
 
 type UserModel = Model<IUser, {}, IUserMethods>;
 
-const userSchema = new Schema<IUser, IUserMethods, UserModel>(
+const userSchema = new Schema(
   {
     name: {
       type: String,
@@ -37,6 +45,8 @@ const userSchema = new Schema<IUser, IUserMethods, UserModel>(
   },
   { timestamps: true }
 );
+
+type inferType = InferSchemaType<typeof userSchema>;
 
 userSchema.methods.matchPassword = async function (enteredPassword: string) {
   return await bcrypt.compare(enteredPassword, this.password);

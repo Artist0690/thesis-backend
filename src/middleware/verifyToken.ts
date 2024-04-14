@@ -14,16 +14,18 @@ export const verifyToken = async (
   }
 
   const accessToken = requestHeader.split(" ")[1];
-  console.log({ accessToken });
+  // console.log({ accessToken });
 
   const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET as string;
 
-  jwt.verify(accessToken, accessTokenSecret, (error, decoded) => {
+  jwt.verify(accessToken, accessTokenSecret, (error, decoded: any) => {
     if (error) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
     // some logic 📌
+    // set user id to request object
+    req.user = { id: decoded.UserInfo.id };
     next();
   });
 };

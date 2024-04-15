@@ -21,8 +21,14 @@ const ChatSchema = new Schema(
     },
     users: [
       {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
+        id: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        passphrase: {
+          type: String,
+          default: null,
+        },
       },
     ],
     latestMessage: {

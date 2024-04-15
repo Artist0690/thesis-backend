@@ -38,7 +38,7 @@ const login = async (req: Request, res: Response) => {
   const accessToken = jwt.sign(
     {
       UserInfo: {
-        name: foundUser.email,
+        email: foundUser.email,
         id: foundUser.id,
       },
     },
@@ -64,7 +64,12 @@ const login = async (req: Request, res: Response) => {
   });
 
   console.log("access token is sent via login process.");
-  res.status(200).json({ accessToken, email: email });
+  res.status(200).json({
+    accessToken,
+    email: foundUser.email,
+    name: foundUser.name,
+    id: foundUser.id,
+  });
 };
 
 const register = async (req: Request, res: Response) => {
@@ -134,19 +139,68 @@ const refresh = async (req: Request, res: Response) => {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
+      const { id, name, email } = foundUser;
+
       const accessToken = jwt.sign(
         {
           UserInfo: {
-            email: foundUser.email,
+            email: email,
+            id: id,
+          },
+        },
+        process.env.ACCESS_TOKEN_SECRET as string,
+        { expiresIn: "10m" }
+      );
+
+      res.status(200).json({ accessToken: accessToken });
+    }
+  );
+};
+
+const check = async (req: Request, res: Response) => {
+  const cookies = req.cookies;
+
+  if (!cookies) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const refreshToken = cookies.refresh;
+
+  console.log("request cookie :", cookies);
+
+  jwt.verify(
+    refreshToken,
+    process.env.REFRESH_TOKEN_SECRET as string,
+    async (err: jwt.VerifyErrors | null, decoded: any) => {
+      if (err) {
+        return res.status(403).json({ message: "Forbidden verify error" });
+      }
+
+      // console.log(decoded);
+
+      const foundUser = await User.findOne({
+        email: decoded.UserInfo.email as string,
+      });
+
+      if (!foundUser) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { id, name, email } = foundUser;
+
+      const accessToken = jwt.sign(
+        {
+          UserInfo: {
+            email: email,
           },
         },
         process.env.ACCESS_TOKEN_SECRET as string,
         { expiresIn: "10s" }
       );
 
-      res.json({ accessToken });
+      res.status(200).json({ accessToken: accessToken, id, name, email });
     }
   );
 };
 
-export { login, register, refresh };
+export { login, register, refresh, check };

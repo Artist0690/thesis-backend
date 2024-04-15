@@ -38,8 +38,8 @@ const accessChat = async (req: Request, res: Response) => {
   let isChat = await Chat.find({
     isGroupChat: false,
     $and: [
-      { users: { $elemMatch: { $eq: chatMateId } } },
-      { users: { $elemMatch: { $eq: zRequestObjCheck.data.id } } },
+      { users: { $elemMatch: { id: { $eq: chatMateId } } } },
+      { users: { $elemMatch: { id: { $eq: zRequestObjCheck.data.id } } } },
     ],
   })
     .populate("latestMessage", "content sender")
@@ -58,10 +58,14 @@ const accessChat = async (req: Request, res: Response) => {
   }
 
   // if not
+  const passphrase = "abcd";
   let chatData = {
     chatName: "sender",
     isGroupChat: false,
-    users: [zRequestObjCheck.data.id, chatMateId],
+    users: [
+      { id: zRequestObjCheck.data.id, passphrase },
+      { id: chatMateId, passphrase },
+    ],
   };
 
   // create a new chat
@@ -125,23 +129,25 @@ const sendMessage = async (req: Request, res: Response) => {
 // POST chats/get_all_chats 🛤️
 const fetchChats = async (req: Request, res: Response) => {
   // retrieve user's id from request object
-  const zRequestObjSchema = z.object({
+  const zRequestHeaderSchema = z.object({
     id: z.string(),
   });
-  const zRequestObjCheck = zRequestObjSchema.safeParse(req.user);
+  const zRequestHeaderCheck = zRequestHeaderSchema.safeParse(req.user);
 
-  if (!zRequestObjCheck.success) {
+  if (!zRequestHeaderCheck.success) {
     return res.status(403).json({ message: "Unauthorized." });
   }
 
-  const { id: currentUserId } = zRequestObjCheck.data;
+  const { id: currentUserId } = zRequestHeaderCheck.data;
+
+  // console.log("req user id: ", currentUserId);
 
   // find all chats associating with this user
   const findAllChats = await Chat.find({
-    users: { $elemMatch: { $eq: currentUserId } },
+    users: { $elemMatch: { id: { $eq: currentUserId } } },
   })
-    .populate("users", "-password -rsa_public_key")
-    .populate("groupAdmin", "-password -rsa_public_key")
+    .populate("users.id", "name id email")
+    // .populate("groupAdmin", "-password -rsa_public_key")
     .populate("latestMessage")
     .sort({ updatedAt: -1 });
 
@@ -157,4 +163,15 @@ const fetchChats = async (req: Request, res: Response) => {
   res.status(200).send(allChats);
 };
 
-export { accessChat, sendMessage, fetchChats };
+const test = (req: Request, res: Response) => {
+  const zRequestObjSchema = z.object({ id: z.string() });
+  console.log(req.user);
+  const zRequestObjCheck = zRequestObjSchema.safeParse(req.user);
+  if (!zRequestObjCheck.success) {
+    return res.status(403).json({ message: "Unauthorized." });
+  }
+
+  res.status(200).json({ message: "ok", id: zRequestObjCheck.data.id });
+};
+
+export { accessChat, sendMessage, fetchChats, test };

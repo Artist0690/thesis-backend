@@ -50,6 +50,7 @@ const login = async (req: Request, res: Response) => {
     {
       UserInfo: {
         email: foundUser.email,
+        id: foundUser.id,
       },
     },
     process.env.REFRESH_TOKEN_SECRET as string,
@@ -119,7 +120,7 @@ const refresh = async (req: Request, res: Response) => {
 
   const refreshToken = cookies.refresh;
 
-  console.log("request cookie :", cookies);
+  // console.log("refresh token inside cookie :", cookies);
 
   jwt.verify(
     refreshToken,
@@ -166,7 +167,7 @@ const check = async (req: Request, res: Response) => {
 
   const refreshToken = cookies.refresh;
 
-  console.log("request cookie :", cookies);
+  // console.log("request cookie :", cookies);
 
   jwt.verify(
     refreshToken,
@@ -198,7 +199,7 @@ const check = async (req: Request, res: Response) => {
         { expiresIn: "10s" }
       );
 
-      res.status(200).json({ accessToken: accessToken, id, name, email });
+      res.status(200).json({ accessToken: accessToken, _id: id, name, email });
     }
   );
 };

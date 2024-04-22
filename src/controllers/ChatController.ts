@@ -126,27 +126,29 @@ const sendMessage = async (req: Request, res: Response) => {
 };
 
 // fetch all chats for a user
-// POST chats/get_all_chats 🛤️
+// GET chats/get_all_chats 🛤️
 const fetchChats = async (req: Request, res: Response) => {
   // retrieve user's id from request object
-  const zRequestHeaderSchema = z.object({
+  const zRequestObjSchema = z.object({
     id: z.string(),
   });
-  const zRequestHeaderCheck = zRequestHeaderSchema.safeParse(req.user);
+  const zRequestObjCheck = zRequestObjSchema.safeParse(req.user);
 
-  if (!zRequestHeaderCheck.success) {
+  if (!zRequestObjCheck.success) {
     return res.status(403).json({ message: "Unauthorized." });
   }
 
-  const { id: currentUserId } = zRequestHeaderCheck.data;
+  const { id: currentUserId } = zRequestObjCheck.data;
 
   // console.log("req user id: ", currentUserId);
 
-  // find all chats associating with this user
+  // --------------------------------------------
+  // | find all chats associating with this user
+  // --------------------------------------------
   const findAllChats = await Chat.find({
-    users: { $elemMatch: { id: { $eq: currentUserId } } },
+    users: { $elemMatch: { userInfo: { $eq: currentUserId } } },
   })
-    .populate("users.id", "name id email")
+    .populate("users.userInfo", "name id email")
     // .populate("groupAdmin", "-password -rsa_public_key")
     .populate("latestMessage")
     .sort({ updatedAt: -1 });

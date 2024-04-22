@@ -14,7 +14,7 @@ export const verifyToken = async (
   }
 
   const accessToken = requestHeader.split(" ")[1];
-  console.log({ accessToken });
+  // console.log({ accessToken });
 
   const accessTokenSecret = process.env.ACCESS_TOKEN_SECRET as string;
 
@@ -26,7 +26,7 @@ export const verifyToken = async (
     // some logic 📌
     // set user id to request object
     req.user = { id: decoded.UserInfo.id };
-    console.log(req.user);
+    // console.log("verify token says", req.user);
     next();
   });
 };

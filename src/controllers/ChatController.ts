@@ -83,48 +83,6 @@ const accessChat = async (req: Request, res: Response) => {
   }
 };
 
-// send a message
-// POST chats/send
-const sendMessage = async (req: Request, res: Response) => {
-  const zRequestBodySchema = z.object({
-    content: z.string(),
-    chat: z.string(),
-  });
-
-  const zRequestBodyCheck = zRequestBodySchema.safeParse(req.body);
-  if (!zRequestBodyCheck.success) {
-    return res.status(400).json({ message: "Bad request." });
-  }
-
-  const { chat, content } = zRequestBodyCheck.data;
-
-  // check req.user
-  const zRequestObjSchema = z.object({
-    id: z.string(),
-  });
-
-  const zRequestObjCheck = zRequestObjSchema.safeParse(req.user);
-
-  if (!zRequestObjCheck.success) {
-    return res.status(403).json({ message: "Unauthorized." });
-  }
-
-  const { id: currentUserId } = zRequestObjCheck.data;
-
-  const createMessage = await Message.create({
-    sender: currentUserId,
-    chat: chat,
-    content: content,
-    readBy: [currentUserId],
-  });
-
-  if (!createMessage) {
-    return res.status(500).json({ message: "Failed to send message." });
-  }
-
-  res.status(201).json(createMessage);
-};
-
 // fetch all chats for a user
 // GET chats/get_all_chats 🛤️
 const fetchChats = async (req: Request, res: Response) => {
@@ -176,4 +134,4 @@ const test = (req: Request, res: Response) => {
   res.status(200).json({ message: "ok", id: zRequestObjCheck.data.id });
 };
 
-export { accessChat, sendMessage, fetchChats, test };
+export { accessChat, fetchChats, test };

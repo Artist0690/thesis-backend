@@ -11,6 +11,7 @@ import mongoose from "mongoose";
 import { router as authRouter } from "./routes/UserRoutes";
 import { router as chatRouter } from "./routes/ChatRoutes";
 import { router as cryptoRouter } from "./routes/cryptoRoutes";
+import { router as messageRouter } from "./routes/MessageRoute";
 
 const app = express();
 
@@ -57,4 +58,5 @@ app.get("/", (req: Request, res: Response) => {
 
 app.use("/auth", authRouter);
 app.use("/chats", chatRouter);
+app.use("/messages", messageRouter);
 app.use("/crypto", cryptoRouter);

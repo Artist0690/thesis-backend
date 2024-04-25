@@ -20,10 +20,10 @@ const fetchAllMessages = async (req: Request, res: Response) => {
     .sort({ createdAt: 1 });
 
   if (!messages || messages.length < 1) {
-    return res.status(200).json({ messages: [] });
+    return res.status(200).send([]);
   }
 
-  res.status(200).json({ messages: messages });
+  res.status(200).send(messages);
 };
 
 const sendMessage = async (req: Request, res: Response) => {

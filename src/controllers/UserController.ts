@@ -204,4 +204,38 @@ const check = async (req: Request, res: Response) => {
   );
 };
 
-export { login, register, refresh, check };
+const find = async (req: Request, res: Response) => {
+  const RequestObjSchema = z.object({ id: z.string() });
+  const checkReqObj = RequestObjSchema.safeParse(req.user);
+  if (!checkReqObj.success) {
+    return res.status(403).json({ message: "Unauthorized." });
+  }
+
+  // retrieve id from request object
+  const { id: currentUserId } = checkReqObj.data;
+
+  const RequestBodySchema = z.object({
+    name: z.string(),
+  });
+  const checkReq = RequestBodySchema.safeParse(req.body);
+  if (!checkReq.success) {
+    return res.status(400).json({ message: "Bad Request." });
+  }
+
+  // find users
+  const { name } = checkReq.data;
+  const keyword = {
+    $or: [
+      { name: { $regex: name, $options: "i" } },
+      // { email: { $regex: name, $options: "i" } },
+    ],
+  };
+
+  const users = await User.find(keyword)
+    .find({ _id: { $ne: currentUserId } })
+    .populate("_id name email");
+
+  res.status(200).send(users);
+};
+
+export { login, register, refresh, check, find };

@@ -1,5 +1,12 @@
 import express from "express";
-import { check, login, refresh, register } from "../controllers/UserController";
+import {
+  check,
+  find,
+  login,
+  refresh,
+  register,
+} from "../controllers/UserController";
+import { verifyToken } from "../middleware/verifyToken";
 
 const router = express.Router();
 
@@ -10,6 +17,8 @@ router.post("/register", register);
 router.get("/refresh", refresh);
 
 router.get("/check", check);
+
+router.get("/find", verifyToken, find);
 
 router.route("/logout").post();
 

@@ -17,6 +17,8 @@ import {
   chat_event,
   connect_event,
   joinRoom_event,
+  setup_event,
+  test_event,
   typing_event,
 } from "./socket_event/event_controller";
 
@@ -31,6 +33,7 @@ app.use(
     credentials: true,
   })
 );
+
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan("dev"));
@@ -65,6 +68,8 @@ io.on("connection", (socket: Socket) => {
   connect_event(socket);
 
   // events
+  test_event(socket);
+  setup_event(socket);
   chat_event(socket);
   joinRoom_event(socket);
   typing_event(socket);
@@ -76,7 +81,8 @@ io.on("connection", (socket: Socket) => {
 });
 
 app.get("/", (req: Request, res: Response) => {
-  res.send("landing!");
+  // res.send("landing!");
+  res.json({ message: "hello from 5000" });
 });
 
 app.use("/auth", authRouter);

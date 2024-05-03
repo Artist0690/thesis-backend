@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
 import z from "zod";
-import Chat from "../Models/Chat";
+import Chat, { ChatModelSchema } from "../Models/Chat";
 import { User } from "../Models/User";
 import Message from "../Models/Message";
 import { populate } from "dotenv";
+import { InferSchemaType } from "mongoose";
 
 // create or fetch one to one chat
 // POST chats/chat 🛤️
@@ -34,19 +35,20 @@ const accessChat = async (req: Request, res: Response) => {
     return res.status(400).json({ message: "Not authorized." });
   }
 
-  // determine whether chat exist or not🔎
+  const { id: currentUserId } = zRequestObjCheck.data;
+
+  // TODO: determine whether chat exist or not🔎
+
   let isChat = await Chat.find({
-    isGroupChat: false,
     $and: [
-      { users: { $elemMatch: { id: { $eq: chatMateId } } } },
-      { users: { $elemMatch: { id: { $eq: zRequestObjCheck.data.id } } } },
+      { "users.userInfo": currentUserId },
+      { "users.userInfo": chatMateId },
     ],
   })
-    .populate("latestMessage", "content sender")
-    .populate("users", "-password -rsa_public_key");
+    .populate("latestMessage")
+    .populate("users.userInfo", "id name email");
 
-  // add a new field to isChat(latestMessage.sender)❌
-  // 🚨🚨🚨🚨🚨 we need to fix here 🚨🚨🚨🚨🚨🚨
+  // TODO: populate chat model
   const chat = await User.populate(isChat, {
     path: "latestMessage.sender",
     select: "name email id",
@@ -57,14 +59,14 @@ const accessChat = async (req: Request, res: Response) => {
     return res.status(200).send(chat[0]);
   }
 
-  // if not
+  // TODO: If chat didn't exist, create a new one.
   const passphrase = "abcd";
   let chatData = {
     chatName: "sender",
     isGroupChat: false,
     users: [
-      { id: zRequestObjCheck.data.id, passphrase },
-      { id: chatMateId, passphrase },
+      { userInfo: zRequestObjCheck.data.id, passphrase },
+      { userInfo: chatMateId, passphrase },
     ],
   };
 
@@ -72,10 +74,7 @@ const accessChat = async (req: Request, res: Response) => {
   try {
     const createdChat = await Chat.create(chatData);
     const fullChat = await Chat.find({ id: createdChat.id });
-    // .populate(
-    //   "users",
-    //   "-password -rsa_public_key"
-    // );
+
     return res.status(200).json(fullChat);
   } catch (error) {
     res.json({ message: "Failed to create chat." });
@@ -83,7 +82,7 @@ const accessChat = async (req: Request, res: Response) => {
   }
 };
 
-// fetch all chats for a user
+// TODO: fetch all chats for a user
 // GET chats/get_all_chats 🛤️
 const fetchChats = async (req: Request, res: Response) => {
   // retrieve user's id from request object

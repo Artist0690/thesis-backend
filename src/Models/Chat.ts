@@ -33,6 +33,7 @@ const ChatSchema = new Schema(
     ],
     latestMessage: {
       type: mongoose.Schema.Types.ObjectId,
+      default: null,
       ref: "Message",
     },
     groupAdmin: {
@@ -43,7 +44,7 @@ const ChatSchema = new Schema(
   { timestamps: true }
 );
 
-type inferType = InferSchemaType<typeof ChatSchema>;
+export type ChatModelSchema = InferSchemaType<typeof ChatSchema>;
 
 const Chat = mongoose.model("Chat", ChatSchema);
 

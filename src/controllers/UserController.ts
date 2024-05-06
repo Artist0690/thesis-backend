@@ -204,6 +204,7 @@ const check = async (req: Request, res: Response) => {
   );
 };
 
+// TODO: Find users
 const find = async (req: Request, res: Response) => {
   const RequestObjSchema = z.object({ id: z.string() });
   const checkReqObj = RequestObjSchema.safeParse(req.user);
@@ -214,16 +215,16 @@ const find = async (req: Request, res: Response) => {
   // retrieve id from request object
   const { id: currentUserId } = checkReqObj.data;
 
-  const RequestBodySchema = z.object({
+  const RequestParamSchema = z.object({
     name: z.string(),
   });
-  const checkReq = RequestBodySchema.safeParse(req.body);
-  if (!checkReq.success) {
+  const checkParam = RequestParamSchema.safeParse(req.query);
+  if (!checkParam.success) {
     return res.status(400).json({ message: "Bad Request." });
   }
 
   // find users
-  const { name } = checkReq.data;
+  const { name } = checkParam.data;
   const keyword = {
     $or: [
       { name: { $regex: name, $options: "i" } },
@@ -233,7 +234,8 @@ const find = async (req: Request, res: Response) => {
 
   const users = await User.find(keyword)
     .find({ _id: { $ne: currentUserId } })
-    .populate("_id name email");
+    .find({ _id: { $ne: currentUserId } })
+    .select("-password -rsa_public_key");
 
   res.status(200).send(users);
 };

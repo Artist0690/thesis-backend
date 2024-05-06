@@ -18,7 +18,7 @@ router.get("/refresh", refresh);
 
 router.get("/check", check);
 
-router.get("/find", verifyToken, find);
+router.get("/search", verifyToken, find);
 
 router.route("/logout").post();
 

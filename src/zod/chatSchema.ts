@@ -6,7 +6,7 @@ export const MessageSchema = z.object({
   sender: UserSchema,
   content: z.string(),
   chat: z.string(),
-  readBy: z.array(z.string()),
+  readBy: z.boolean(),
 });
 
 const UserArray = z.object({

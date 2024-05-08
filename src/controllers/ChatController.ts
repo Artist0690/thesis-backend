@@ -39,7 +39,7 @@ const accessChat = async (req: Request, res: Response) => {
 
   const { id: currentUserId } = zRequestObjCheck.data;
 
-  // TODO: determine whether chat exist or not🔎
+  // determine whether chat exist or not🔎
 
   let isChat = await Chat.find({
     $and: [
@@ -50,7 +50,7 @@ const accessChat = async (req: Request, res: Response) => {
     .populate("latestMessage")
     .populate("users.userInfo", "id name email");
 
-  // TODO: populate chat model
+  // populate chat model
   const chat = await User.populate(isChat, {
     path: "latestMessage.sender",
     select: "name email id",
@@ -58,10 +58,11 @@ const accessChat = async (req: Request, res: Response) => {
 
   // check whether chat exists
   if (chat.length > 0) {
+    // 🚀send response if chat has already existed
     return res.status(200).json(chat[0]);
   }
 
-  // TODO: If chat didn't exist, create a new one.
+  // If chat didn't exist, create a new one.
   const UserInfoArrSchema = z.array(
     z.object({
       _id: z.string(),
@@ -69,11 +70,11 @@ const accessChat = async (req: Request, res: Response) => {
     })
   );
 
-  // TODO: Convert string id to object id and
-  // TODO: search users!!
+  // Convert string id to object id and
+  // search users!!
   const ObjectId = mongoose.Types.ObjectId;
 
-  // TODO: Search rsa keys of two chat mates
+  // Search rsa keys of two chat mates
   const userInfo = await User.aggregate([
     {
       $match: {
@@ -90,6 +91,7 @@ const accessChat = async (req: Request, res: Response) => {
 
   const checkUserInfoArr = UserInfoArrSchema.safeParse(userInfo);
   if (!checkUserInfoArr.success) {
+    // 🚀
     return res.json({
       message: "User info type mismatch.",
       error: checkUserInfoArr.error,
@@ -97,20 +99,20 @@ const accessChat = async (req: Request, res: Response) => {
     });
   }
 
-  // TODO: Use this array to encrypt passphrase
+  // Use this array to encrypt passphrase
   const userInfoArr = checkUserInfoArr.data;
 
   type KeyObj = {
     [key in string]: string;
   };
 
-  // TODO: User this keyOBj to get users' rsa keys
+  // Use this keyOBj to get users' rsa keys
   let keyObj: KeyObj = {};
   userInfoArr.map((uInfo) => {
     keyObj[uInfo._id] = uInfo.rsa_public_key;
   });
 
-  // TODO: Use this chat data payload to store in database
+  // Use this chat data payload to store in database
   type ChatDataPayload = {
     userInfo: string;
     passphrase: string;
@@ -118,10 +120,10 @@ const accessChat = async (req: Request, res: Response) => {
 
   let chatDataPayload: ChatDataPayload[] = [];
 
-  // TODO: plaintext passphrase
+  // plaintext passphrase
   const passphrase = generatePassphrase(16);
 
-  // TODO: Prepare chat data payload
+  // Prepare chat data payload
   userInfoArr.map((userInfo) => {
     const encrypted_passphrase = encrypt_rsa_key(
       passphrase,
@@ -141,16 +143,17 @@ const accessChat = async (req: Request, res: Response) => {
 
   try {
     const createdChat = await Chat.create(chatData);
-    // FIXME: error when searching chat using ID
-    const fullChat = await Chat.findById({
-      id: createdChat.id,
-    })
-      .populate("users.userInfo", "name id email")
-      .populate("latestMessage");
 
-    return res.status(200).json({ fullChat });
+    const fullChat = await Chat.populate(createdChat, {
+      path: "users.userInfo",
+      select: "name id email",
+    });
+
+    // 🚀
+    return res.status(200).send(fullChat);
   } catch (error) {
-    console.log((error as Error).message);
+    console.log(error);
+    // 🚀
     res.json({ message: "Failed to create chat." });
   }
 };

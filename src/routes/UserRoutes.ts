@@ -3,6 +3,7 @@ import {
   check,
   find,
   login,
+  logout,
   refresh,
   register,
 } from "../controllers/UserController";
@@ -20,6 +21,6 @@ router.get("/check", check);
 
 router.get("/search", verifyToken, find);
 
-router.route("/logout").post();
+router.post("/logout", logout);
 
 export { router };

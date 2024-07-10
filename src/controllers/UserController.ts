@@ -73,6 +73,11 @@ const login = async (req: Request, res: Response) => {
   });
 };
 
+const logout = async (req: Request, res: Response) => {
+  res.cookie("refresh", "", { expires: new Date(0) });
+  return res.status(200).send("OK");
+};
+
 const register = async (req: Request, res: Response) => {
   const zodRegisterPayload = z.object({
     name: z.string(),
@@ -240,4 +245,4 @@ const find = async (req: Request, res: Response) => {
   res.status(200).send(users);
 };
 
-export { login, register, refresh, check, find };
+export { login, logout, register, refresh, check, find };

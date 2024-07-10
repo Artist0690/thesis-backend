@@ -46,6 +46,7 @@ export const joinRoom_event = (socket: Socket) => {
 export const typing_event = (socket: Socket) => {
   socket.on("isTyping", (payload: { isTyping: boolean; roomId: string }) => {
     const { isTyping, roomId } = payload;
+    console.log("someone is typing in room ", roomId);
     isTyping ? console.log("typing...") : console.log("stop typing...");
     socket.broadcast.to(roomId).emit("listen_typing", isTyping);
   });

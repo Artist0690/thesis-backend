@@ -46,7 +46,7 @@ const userSchema = new Schema(
   { timestamps: true }
 );
 
-type inferType = InferSchemaType<typeof userSchema>;
+export type USERTYPE = InferSchemaType<typeof userSchema>;
 
 userSchema.methods.matchPassword = async function (enteredPassword: string) {
   return await bcrypt.compare(enteredPassword, this.password);

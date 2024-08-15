@@ -1,201 +1,131 @@
 import { Request, Response } from "express";
-import z from "zod";
+import z, { ZodError } from "zod";
 import Chat, { ChatModelSchema } from "../Models/Chat";
 import { User } from "../Models/User";
-import Message from "../Models/Message";
-import { populate } from "dotenv";
 import mongoose, { InferSchemaType, Types } from "mongoose";
-import { generatePassphrase } from "../cryptography/getPassphrase";
+import { generatePassphrase, get_AES_key } from "../cryptography/getPassphrase";
 import { encrypt_rsa_key } from "../cryptography/rsa_crypto";
 
 // create or fetch one to one chat
-// POST chats/chat 🛤️
 const accessChat = async (req: Request, res: Response) => {
-  // retrieve other user's id from request body
-  const zRequestBodySchema = z.object({ chatMateId: z.string() });
-  const zRequestBodyCheck = zRequestBodySchema.safeParse(req.body);
-
-  if (!zRequestBodyCheck.success) {
-    return res
-      .status(400)
-      .json({ message: "user id is required.Bad request." });
-  }
-
-  const { chatMateId } = zRequestBodyCheck.data;
-
-  // retrieve user id from request object
-  const zRequestObjSchema = z.object({
-    id: z.string(),
-  });
-
-  const reqObj = req.user;
-  const zRequestObjCheck = zRequestObjSchema.safeParse(reqObj);
-
-  // console.log("reqobj- ", reqObj);
-
-  if (!zRequestObjCheck.success) {
-    return res.status(400).json({ message: "Not authorized." });
-  }
-
-  const { id: currentUserId } = zRequestObjCheck.data;
-
-  // determine whether chat exist or not🔎
-
-  let isChat = await Chat.find({
-    $and: [
-      { "users.userInfo": currentUserId },
-      { "users.userInfo": chatMateId },
-    ],
-  })
-    .populate("latestMessage")
-    .populate("users.userInfo", "id name email");
-
-  // populate chat model
-  const chat = await User.populate(isChat, {
-    path: "latestMessage.sender",
-    select: "name email id",
-  });
-
-  // check whether chat exists
-  if (chat.length > 0) {
-    // 🚀send response if chat has already existed
-    return res.status(200).json(chat[0]);
-  }
-
-  // If chat didn't exist, create a new one.
-  const UserInfoArrSchema = z.array(
-    z.object({
-      _id: z.string(),
-      rsa_public_key: z.string(),
-    })
-  );
-
-  // Convert string id to object id and
-  // search users!!
-  const ObjectId = mongoose.Types.ObjectId;
-
-  // Search rsa keys of two chat mates
-  const userInfo = await User.aggregate([
-    {
-      $match: {
-        _id: { $in: [new ObjectId(currentUserId), new ObjectId(chatMateId)] },
-      },
-    },
-    {
-      $project: {
-        _id: { $toString: "$_id" },
-        rsa_public_key: 1,
-      },
-    },
-  ]);
-
-  const checkUserInfoArr = UserInfoArrSchema.safeParse(userInfo);
-  if (!checkUserInfoArr.success) {
-    // 🚀
-    return res.json({
-      message: "User info type mismatch.",
-      error: checkUserInfoArr.error,
-      info: userInfo,
-    });
-  }
-
-  // Use this array to encrypt passphrase
-  const userInfoArr = checkUserInfoArr.data;
-
-  type KeyObj = {
-    [key in string]: string;
-  };
-
-  // Use this keyOBj to get users' rsa keys
-  let keyObj: KeyObj = {};
-  userInfoArr.map((uInfo) => {
-    keyObj[uInfo._id] = uInfo.rsa_public_key;
-  });
-
-  // Use this chat data payload to store in database
-  type ChatDataPayload = {
-    userInfo: string;
-    passphrase: string;
-  };
-
-  let chatDataPayload: ChatDataPayload[] = [];
-
-  // plaintext passphrase
-  const passphrase = generatePassphrase(16);
-
-  // Prepare chat data payload
-  userInfoArr.map((userInfo) => {
-    const encrypted_passphrase = encrypt_rsa_key(
-      passphrase,
-      userInfo.rsa_public_key
-    );
-    chatDataPayload.push({
-      userInfo: userInfo._id,
-      passphrase: encrypted_passphrase,
-    });
-  });
-
-  let chatData = {
-    chatName: "sender",
-    isGroupChat: false,
-    users: chatDataPayload,
-  };
-
   try {
-    const createdChat = await Chat.create(chatData);
+    const REQUEST_BODY_VALIDATOR = z.object({ chatMateId: z.string() });
+    const validatedBody = REQUEST_BODY_VALIDATOR.parse(req.body);
 
-    const fullChat = await Chat.populate(createdChat, {
-      path: "users.userInfo",
-      select: "name id email",
+    const { chatMateId } = validatedBody;
+
+    const REQUEST_OBJECT_VALIDATOR = z.object({
+      id: z.string(),
     });
 
-    // 🚀
-    return res.status(200).send(fullChat);
+    const reqObj = req.user;
+    const validatedRequestObject = REQUEST_OBJECT_VALIDATOR.parse(reqObj);
+
+    const { id: currentUserId } = validatedRequestObject;
+
+    let isChat = await Chat.find({
+      users: {
+        $all: [
+          {
+            $elemMatch: {
+              userInfo: currentUserId,
+            },
+          },
+          {
+            $elemMatch: {
+              userInfo: chatMateId,
+            },
+          },
+        ],
+      },
+    })
+      .populate("latestMessage")
+      .populate("users.userInfo", "id name email");
+
+    if (isChat && isChat.length > 0) {
+      const chat = await User.populate(isChat, {
+        path: "latestMessage.sender",
+        select: "name email id",
+      });
+
+      return res.json(chat[0]).status(200);
+    }
+
+    // ---------------------------------------------------
+
+    const chatMembers = await Promise.all([
+      await User.findOne({ _id: currentUserId }).select("-password"),
+      await User.findOne({ _id: chatMateId }).select("-password"),
+    ]);
+
+    if (!chatMembers || chatMembers.length < 1) {
+      return res.json({ message: "Fail to create chat" }).status(500);
+    }
+
+    const passphrase = get_AES_key();
+
+    const ObjectId = mongoose.Types.ObjectId;
+
+    const userInfos = chatMembers.map((user) => {
+      const cipherAES = encrypt_rsa_key(
+        passphrase,
+        user?.rsa_public_key as string
+      );
+
+      return {
+        userInfo: new ObjectId(user?.id as string),
+        passphrase: cipherAES,
+      };
+    });
+
+    const createChat = await Chat.create({ users: userInfos });
+
+    return res.json(createChat).status(200);
   } catch (error) {
-    console.log(error);
-    // 🚀
+    if (error instanceof ZodError)
+      return res.json({ message: "Unprocessable payload" }).status(422);
+
     res.json({ message: "Failed to create chat." });
   }
 };
 
-// TODO: fetch all chats for a user
-// GET chats/get_all_chats 🛤️
+// fetch all chats for a user
 const fetchChats = async (req: Request, res: Response) => {
-  // retrieve user's id from request object
-  const zRequestObjSchema = z.object({
-    id: z.string(),
-  });
-  const zRequestObjCheck = zRequestObjSchema.safeParse(req.user);
+  try {
+    const REQUEST_OBJECT_VALIDATOR = z.object({
+      id: z.string(),
+    });
+    const validatedRequestObject = REQUEST_OBJECT_VALIDATOR.parse(req.user);
 
-  if (!zRequestObjCheck.success) {
-    return res.status(403).json({ message: "Unauthorized." });
+    const { id: currentUserId } = validatedRequestObject;
+
+    const chats = await Chat.find({
+      users: { $elemMatch: { userInfo: { $eq: currentUserId } } },
+    })
+      .populate("users.userInfo", "name id email")
+      .populate("latestMessage")
+      .sort({ updatedAt: -1 });
+
+    if (chats && chats.length < 1) {
+      return res.status(404).json({ message: "No chats." });
+    }
+
+    const allChats = await User.populate(chats, {
+      path: "latestMessage.sender",
+      select: "id name email",
+    });
+
+    res.status(200).send(allChats);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      console.log(error.message);
+      return res
+        .json({ message: `Unprocessable payload. ${error.message}` })
+        .status(422);
+    }
+
+    return res.json({ message: "Fail to access chats" }).status(500);
   }
-
-  const { id: currentUserId } = zRequestObjCheck.data;
-
-  // console.log("req user id: ", currentUserId);
-
-  // --------------------------------------------
-  // | find all chats associating with this user
-  // --------------------------------------------
-  const findAllChats = await Chat.find({
-    users: { $elemMatch: { userInfo: { $eq: currentUserId } } },
-  })
-    .populate("users.userInfo", "name id email")
-    // .populate("groupAdmin", "-password -rsa_public_key")
-    .populate("latestMessage")
-    .sort({ updatedAt: -1 });
-
-  if (findAllChats.length < 1) {
-    return res.status(400).json({ message: "No chats." });
-  }
-
-  const allChats = await User.populate(findAllChats, {
-    path: "latestMessage.sender",
-    select: "id name email",
-  });
-
-  res.status(200).send(allChats);
 };
 
 const test = async (req: Request, res: Response) => {
@@ -215,7 +145,7 @@ const test = async (req: Request, res: Response) => {
 
   const { chatMateId } = reqBody.data;
 
-  const UserInfoArrSchema = z.array(
+  const USER_INFO_VALIDATOR = z.array(
     z.object({
       _id: z.string(),
       rsa_public_key: z.string(),
@@ -240,17 +170,17 @@ const test = async (req: Request, res: Response) => {
     },
   ]);
 
-  const checkUserInfoArr = UserInfoArrSchema.safeParse(userInfo);
-  if (!checkUserInfoArr.success) {
+  const usersInfo = USER_INFO_VALIDATOR.safeParse(userInfo);
+  if (!usersInfo.success) {
     return res.json({
       message: "User info type mismatch.",
-      error: checkUserInfoArr.error,
+      error: usersInfo.error,
       info: userInfo,
     });
   }
 
   // TODO: Use this array to encrypt passphrase
-  const userInfoArr = checkUserInfoArr.data;
+  const userInfoArray = usersInfo.data;
 
   type KeyObj = {
     [key in string]: string;
@@ -258,7 +188,7 @@ const test = async (req: Request, res: Response) => {
 
   // TODO: User this keyOBj to get users' rsa keys
   let keyObj: KeyObj = {};
-  userInfoArr.map((uInfo) => {
+  userInfoArray.map((uInfo) => {
     keyObj[uInfo._id] = uInfo.rsa_public_key;
   });
 
@@ -274,7 +204,7 @@ const test = async (req: Request, res: Response) => {
   const passphrase = generatePassphrase(16);
 
   // TODO: Prepare chat data payload
-  userInfoArr.map((userInfo) => {
+  userInfoArray.map((userInfo) => {
     const encrypted_passphrase = encrypt_rsa_key(
       passphrase,
       userInfo.rsa_public_key

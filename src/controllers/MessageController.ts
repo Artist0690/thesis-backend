@@ -1,60 +1,53 @@
 import { Request, Response } from "express";
-import z from "zod";
+import z, { ZodError } from "zod";
 import Chat from "../Models/Chat";
 import Message from "../Models/Message";
 
 const fetchAllMessages = async (req: Request, res: Response) => {
-  const ReqParam = z.object({ chatId: z.string() });
-  const reqParam = ReqParam.safeParse(req.params);
+  try {
+    const REQUEST_PARAM_VALIDATOR = z.object({ chatId: z.string() });
+    const reqParam = REQUEST_PARAM_VALIDATOR.parse(req.params);
 
-  console.log("fetch all msg.");
+    const { chatId } = reqParam;
 
-  if (!reqParam.success) {
-    return res.status(400).json({ message: "Bad Request." });
+    const messages = await Message.find({ chat: chatId })
+      .populate("sender", "id name email")
+      .sort({ createdAt: 1 });
+
+    if (!messages || messages.length < 1) {
+      return res.status(200).send([]);
+    }
+
+    res.status(200).send(messages);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return res.json({ message: "Unprocessable payload" }).status(422);
+    }
+    return res.json({ message: "Fail to access messages" }).status(500);
   }
-
-  const { chatId } = reqParam.data;
-
-  const messages = await Message.find({ chat: chatId })
-    .populate("sender", "id name email")
-    .sort({ createdAt: 1 });
-
-  if (!messages || messages.length < 1) {
-    return res.status(200).send([]);
-  }
-
-  res.status(200).send(messages);
 };
 
 const sendMessage = async (req: Request, res: Response) => {
-  const ReqBody = z.object({
-    chatId: z.string(),
-    content: z.string(),
-  });
-
-  const reqBody = ReqBody.safeParse(req.body);
-  if (!reqBody.success) {
-    return res.status(400).json({ message: "Bad request." });
-  }
-
-  const ReqUser = z.object({ id: z.string() });
-  const reqUser = ReqUser.safeParse(req.user);
-
-  if (!reqUser.success) {
-    return res.status(401).json({ message: "Unauthorized" });
-  }
-
-  const { chatId, content } = reqBody.data;
-  const { id: currentUserId } = reqUser.data;
-
-  const newMsgPayload = {
-    chat: chatId,
-    sender: currentUserId,
-    content: content,
-  };
-
   try {
-    // create a message
+    const REQUEST_BODY_VALIDATOR = z.object({
+      chatId: z.string(),
+      content: z.string(),
+    });
+
+    const reqBody = REQUEST_BODY_VALIDATOR.parse(req.body);
+
+    const REQUEST_USER_VALIDATOR = z.object({ id: z.string() });
+    const reqUser = REQUEST_USER_VALIDATOR.parse(req.user);
+
+    const { chatId, content } = reqBody;
+    const { id: currentUserId } = reqUser;
+
+    const newMsgPayload = {
+      chat: chatId,
+      sender: currentUserId,
+      content: content,
+    };
+
     const createMessage = await Message.create(newMsgPayload);
 
     const message = await Message.findById(createMessage.id).populate(
@@ -69,6 +62,9 @@ const sendMessage = async (req: Request, res: Response) => {
 
     res.status(200).json(message);
   } catch (error) {
+    if (error instanceof ZodError)
+      return res.status(422).json({ message: "Unprocessable payload." });
+
     return res.status(401).json({ message: "Failed to send message." });
   }
 };

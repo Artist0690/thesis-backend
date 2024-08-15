@@ -1,5 +1,5 @@
 import { Socket } from "socket.io";
-import z from "zod";
+import z, { ZodError } from "zod";
 import { ChatSchema, MessageSchema } from "../zod/chatSchema";
 import { UserSchema } from "../zod/userSchema";
 
@@ -22,15 +22,19 @@ export const connect_event = (socket: Socket) => {
 
 export const chat_event = (socket: Socket) => {
   socket.on("chat", (payload: Message & { receiver: string }) => {
-    const { content, chat, receiver } = payload;
-    console.log(`${content} sent to ${receiver}`);
-    // socket.broadcast.to(chat).emit("receive_msg", payload);
-    const newMessage = MessageSchema.safeParse(payload);
-    if (!newMessage.success) {
-      console.log(newMessage.error);
-      return;
+    try {
+      const { content, receiver } = payload;
+      console.log(`${content} sent to ${receiver}`);
+      const newMessage = MessageSchema.parse(payload);
+
+      socket.in(receiver).emit("receive_msg", newMessage);
+    } catch (error) {
+      if (error instanceof ZodError) {
+        console.log(error.message);
+        return;
+      }
+      console.log("Socket failed to send message.");
     }
-    socket.in(receiver).emit("receive_msg", newMessage.data);
   });
 };
 

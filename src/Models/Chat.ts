@@ -1,24 +1,8 @@
 import mongoose, { InferSchemaType, Model, Schema, Types } from "mongoose";
 import { boolean } from "zod";
 
-interface IChat {
-  chatName: string;
-  isGroupChat: boolean;
-  users: Types.ObjectId[];
-  latestMessage: Types.ObjectId;
-  groupAdmin: Types.ObjectId;
-}
-
 const ChatSchema = new Schema(
   {
-    chatName: {
-      type: String,
-      trim: true,
-    },
-    isGroupChat: {
-      type: Boolean,
-      default: false,
-    },
     users: [
       {
         userInfo: {
@@ -35,10 +19,6 @@ const ChatSchema = new Schema(
       type: mongoose.Schema.Types.ObjectId,
       default: null,
       ref: "Message",
-    },
-    groupAdmin: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
     },
   },
   { timestamps: true }

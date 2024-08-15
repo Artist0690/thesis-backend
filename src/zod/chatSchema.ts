@@ -6,7 +6,6 @@ export const MessageSchema = z.object({
   sender: UserSchema,
   content: z.string(),
   chat: z.string(),
-  readBy: z.boolean(),
 });
 
 const UserArray = z.object({
@@ -16,9 +15,6 @@ const UserArray = z.object({
 
 export const ChatSchema = z.object({
   _id: z.string(),
-  chatName: z.string(),
-  isGroupChat: z.boolean(),
   users: z.array(UserArray),
   latestMessage: MessageSchema.nullable(),
-  // groupAdmin: UserSchema,
 });

@@ -1,17 +1,4 @@
-import mongoose, {
-  InferSchemaType,
-  model,
-  Model,
-  Schema,
-  Types,
-} from "mongoose";
-
-interface IMessage {
-  sender: Types.ObjectId;
-  content: string;
-  chat: Types.ObjectId;
-  readBy: Types.ObjectId[];
-}
+import mongoose, { InferSchemaType, model, Schema, Types } from "mongoose";
 
 const MessageSchema = new Schema(
   {
@@ -26,10 +13,6 @@ const MessageSchema = new Schema(
     chat: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Chat",
-    },
-    readBy: {
-      type: Boolean,
-      default: false,
     },
   },
   { timestamps: true }

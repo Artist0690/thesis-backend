@@ -80,7 +80,11 @@ const accessChat = async (req: Request, res: Response) => {
 
     const createChat = await Chat.create({ users: userInfos });
 
-    return res.json(createChat).status(200);
+    const newChat = await Chat.findById(createChat.id).populate(
+      "users.userInfo"
+    );
+
+    return res.json(newChat).status(200);
   } catch (error) {
     if (error instanceof ZodError)
       return res.json({ message: "Unprocessable payload" }).status(422);

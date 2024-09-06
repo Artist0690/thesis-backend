@@ -22,8 +22,6 @@ interface IUserMethods extends IUser, mongoose.Document {
   matchPassword: (enteredPassword: string) => Promise<boolean>;
 }
 
-type UserModel = Model<IUser, {}, IUserMethods>;
-
 const userSchema = new Schema(
   {
     name: {
